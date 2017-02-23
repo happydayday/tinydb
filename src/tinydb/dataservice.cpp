@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "types.h"
+
 #include "message.h"
 #include "dataserver.h"
 #include "dataservice.h"
@@ -61,7 +63,7 @@ int32_t CClientSession::onProcess( const char * buf, uint32_t nbytes )
 
                 // 没有出错, 提交给DataThread处理
                 msg->setSid( id() );
-                CDataServer::getInstance().post( msg );
+                CDataServer::getInstance().post( eTaskType_Client, static_cast<void *>(msg) );
             }
 
             m_MsgDecoder.clear();

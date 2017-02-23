@@ -236,4 +236,51 @@ bool Utility::getlines( const std::string & path, std::vector<std::string> & lin
     return true;
 }
 
+std::string Utility::hexmem( const void * p, int size )
+{
+    std::string ret;
+    char buf[4];
+    for( int i = 0; i < size; i++ )
+    {
+        char c = ((char *)p)[i];
+        if(isalnum(c) || isprint(c))
+        {
+            ret.append( 1, c );
+        }
+        else
+        {
+            switch(c){
+                case '\r':
+                    ret.append( "\\r", 2 );
+                    break;
+                case '\n':
+                    ret.append( "\\n", 2 );
+                    break;
+                default:
+                    sprintf( buf, "\\%02x", (unsigned char)c );
+                    ret.append( buf, 3 );
+            }
+        }
+    }
+
+    return ret;
+}
+
+uint16_t Utility::bigEndian( uint16_t v )
+{
+    return (v>>8) | (v<<8);
+}
+
+uint32_t Utility::bigEndian( uint32_t v )
+{
+    return (v >> 24) | ((v >> 8) & 0xff00) | ((v << 8) & 0xff0000) | (v << 24);
+}
+
+uint64_t Utility::bigEndian( uint64_t v )
+{
+    uint32_t h = v >> 32;
+    uint32_t l = v & 0xffffffffull;
+    return bigEndian(h) | ((uint64_t)bigEndian(l) << 32);
+}
+
 }

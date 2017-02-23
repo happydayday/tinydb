@@ -13,6 +13,9 @@
 namespace tinydb
 {
 
+typedef uint16_t                MessageID;      // 消息ID
+
+// memcache
 class CacheItem
 {
 public :
@@ -94,8 +97,16 @@ private :
     uint32_t    m_Delta;
 };
 
+#pragma pack(1)
 
+// 服务器之间通信的包头
+struct SSHead
+{
+    MessageID   cmd;        // 命令字
+    uint32_t    size;       // 长度
+};
 
+#pragma pack()
 
 }
 

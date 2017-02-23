@@ -41,7 +41,8 @@ public :
     bool del( const Key & key );
 
     // 开启/提交事务(单位毫秒)
-    bool start( int32_t timeout );
+    // timeout = 0 : 不设置超时时间
+    bool start( int32_t timeout = 0 );
     bool commit();
     leveldb::WriteBatch * txn() const { return m_Transaction; }
 

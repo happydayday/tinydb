@@ -15,7 +15,7 @@ void * dump_backend( void * arg )
     DumpThreadArgs * args = (DumpThreadArgs *)arg;
     sid_t sid = args->sid;
     CDataServer * server = args->server;
-    LevelDBEngine * engine = args->server->getStorageEngine();
+    LevelDBEngine * engine = args->server->getMainDB();
 
     leveldb::ReadOptions options;
     options.snapshot = engine->getDatabase()->GetSnapshot();

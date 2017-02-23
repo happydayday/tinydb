@@ -171,7 +171,7 @@ bool LevelDBEngine::start( int32_t timeout )
 
     // 创建事务
     m_Transaction = new leveldb::WriteBatch();
-    if ( m_Transaction != NULL )
+    if ( m_Transaction != NULL && timeout != 0 )
     {
         m_TxnTimestamp = utils::TimeUtils::now() + timeout;
         return true;
@@ -240,6 +240,11 @@ void LevelDBEngine::compactdb()
 bool LevelDBEngine::autocommit()
 {
     if ( m_Transaction == NULL )
+    {
+        return false;
+    }
+
+    if ( m_TxnTimestamp == 0 )
     {
         return false;
     }

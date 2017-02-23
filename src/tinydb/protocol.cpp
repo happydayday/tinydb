@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "utils/streambuf.h"
+
 #include "message.h"
 #include "protocol.h"
 
@@ -208,4 +210,159 @@ char * CacheProtocol::getline( const char * buffer, uint32_t nbytes, int32_t & l
     return line;
 }
 
+/////////////////////////////////////////////////////////////////////////////////
+
+SSMessage * GeneralDecoder( sid_t sid, const SSHead & head, const Slice & body )
+{
+    SSMessage * msg = NULL;
+
+    switch ( head.cmd )
+    {
+        case eSSCommand_SyncRequest :
+            msg = new SyncRequest();
+            break;
+
+        case eSSCommand_SyncResponse :
+            msg = new SyncResponse();
+            break;
+    }
+
+    if ( msg == NULL )
+    {
+        return NULL;
+    }
+
+    msg->sid = sid;
+    // 复制head
+    msg->head = head;
+
+    // 解析包体
+    if ( !msg->decode( body ) )
+    {
+        delete msg;
+        return NULL;
+    }
+
+    return msg;
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+
+SSMessage::SSMessage()
+    : sid( 0 ),
+      space( NULL ),
+      length( 0 )
+{}
+
+SSMessage::~SSMessage()
+{
+    length = 0;
+
+    if ( space != NULL )
+    {
+        std::free( space );
+        space = NULL;
+    }
+}
+
+void SSMessage::clear()
+{
+    space = NULL;
+    length = 0;
+}
+
+bool SSMessage::make( const char * buffer, uint32_t len )
+{
+    if ( space != NULL )
+    {
+        return false;
+    }
+
+    space = (char *)std::malloc( len );
+    if ( space != NULL )
+    {
+        length = len;
+        std::memcpy( (void *)space, (void *)buffer, len );
+    }
+
+    return space != NULL;
+}
+
+SyncRequest::SyncRequest()
+    : lastseq( 0ULL )
+{
+    head.cmd = eSSCommand_SyncRequest;
+}
+
+SyncRequest::~SyncRequest()
+{}
+
+Slice SyncRequest::encode()
+{
+    StreamBuf pack( 1024, sizeof(SSHead) );
+
+    // BODY
+    pack.encode( lastseq );
+    pack.encode( lastkey );
+
+    // 计算长度
+    space = pack.data();
+    length = pack.length();
+    head.size = pack.size();
+
+    // 重置并且编码HEAD
+    pack.reset();
+    pack.encode( head.cmd );
+    pack.encode( head.size );
+
+    return pack.slice();
+}
+
+bool SyncRequest::decode( const Slice & data )
+{
+    StreamBuf unpack(
+            data.data(), data.size() );
+    unpack.decode( lastseq );
+    unpack.decode( lastkey );
+    return true;
+}
+
+SyncResponse::SyncResponse()
+{
+    head.cmd = eSSCommand_SyncResponse;
+}
+
+SyncResponse::~SyncResponse()
+{}
+
+Slice SyncResponse::encode()
+{
+    StreamBuf pack( 1024, sizeof(SSHead) );
+
+    // BODY
+    pack.encode( binlog );
+    pack.encode( value );
+
+    // 计算长度
+    space = pack.data();
+    length = pack.length();
+    head.size = pack.size();
+
+    // 重置并且编码HEAD
+    pack.reset();
+    pack.encode( head.cmd );
+    pack.encode( head.size );
+
+    return pack.slice();
+}
+
+bool SyncResponse::decode( const Slice & data )
+{
+    StreamBuf unpack(
+            data.data(), data.size() );
+    unpack.decode( binlog );
+    unpack.decode( value );
+
+    return true;
+}
 }
