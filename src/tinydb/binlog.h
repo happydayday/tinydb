@@ -70,15 +70,9 @@ public :
     int findLast( Binlog *log ) const;
 
 private :
-    static void* logCleanThreadFunc(void *arg);
     int del(uint64_t seq);
     // [start, end] includesive
     int delRange(uint64_t start, uint64_t end);
-
-    void merge();
-
-public:
-    pthread_mutex_t m_Lock;
 
 private:
     LevelDBEngine * m_Engine;
@@ -86,8 +80,6 @@ private:
     uint64_t        m_LastSeq;
     uint64_t        m_TranSeq;
     uint32_t        m_Capacity;
-
-    volatile bool   m_Quit;
 };
 
 class Transaction
@@ -96,7 +88,6 @@ public:
 	Transaction( BinlogQueue *logs )
     {
 		this->m_Logs = logs;
-        pthread_mutex_lock( &m_Logs->m_Lock );
 		m_Logs->begin();
 	}
 
@@ -104,7 +95,6 @@ public:
     {
 		// it is safe to call rollback after commit
 		m_Logs->rollback();
-	    pthread_mutex_unlock( &m_Logs->m_Lock );
 	}
 
 private:

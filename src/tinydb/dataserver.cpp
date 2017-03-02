@@ -290,6 +290,12 @@ bool CDataServer::startReplicationService()
         }
 
         m_Slave = new Slave( m_MetaDB );
+        if ( m_Slave == NULL )
+        {
+            return false;
+        }
+
+        m_Slave->initialize();
     }
 
     return true;

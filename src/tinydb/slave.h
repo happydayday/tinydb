@@ -21,6 +21,10 @@ public:
 	Slave( LevelDBEngine * engine );
 	~Slave();
 
+public :
+    // 初始化
+    void initialize();
+
 public:
     void onConnect();
     int process( SSMessage * msg );

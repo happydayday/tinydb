@@ -102,7 +102,7 @@ public :
     virtual bool decode( const Slice & data );
 
 public :
-    char            method;
+    uint8_t         method;
     std::string     binlog;
     std::string     value;
 };

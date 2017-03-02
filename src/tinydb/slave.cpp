@@ -28,6 +28,11 @@ Slave::Slave( LevelDBEngine * engine )
 Slave::~Slave()
 {}
 
+void Slave::initialize()
+{
+    this->loadStatus();
+}
+
 void Slave::loadStatus(){
 	std::string key = "new.slave.status";
 	std::string val;
@@ -160,7 +165,7 @@ int Slave::procSync( char method, const Binlog &log, const std::string & value )
 				}
 
                 CDataServer::getInstance().getMainDB()->set( log.key().ToString(), value );
-			}
+            }
 			break;
 
         case BinlogCommand::DEL:
@@ -174,6 +179,7 @@ int Slave::procSync( char method, const Binlog &log, const std::string & value )
 			break;
 	}
 
+    LOG_DEBUG( "Slave::procSync cmd=%c, seq=%llu, key=%s.\n", log.cmd(), log.seq(), log.key().ToString().c_str() );
     m_LastSeq = log.seq();
 	if( method == BinlogType::COPY )
     {

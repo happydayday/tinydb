@@ -85,6 +85,7 @@ int32_t CSlaveSession::onError( int32_t result )
 void CSlaveSession::onShutdown( int32_t way )
 {
     CSlaveDisconnetTask * task = new CSlaveDisconnetTask();
+    task->setSid( id() );
     bool result = CDataServer::getInstance().post(
             eTaskType_Middleware, static_cast<void *>(task) );
 
@@ -107,12 +108,6 @@ CMasterService::CMasterService( uint8_t nthreads, uint32_t nclients )
 
 CMasterService::~CMasterService()
 {
-}
-
-void * CMasterService::getLocalData( uint8_t index )
-{
-    assert( index < m_ThreadsCount && "iothread index invalid" );
-    return NULL;
 }
 
 IIOSession * CMasterService::onAccept( sid_t id, const char * host, uint16_t port )

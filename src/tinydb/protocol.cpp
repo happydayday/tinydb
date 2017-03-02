@@ -327,6 +327,8 @@ bool SyncRequest::decode( const Slice & data )
     return true;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////
+
 SyncResponse::SyncResponse()
 {
     head.cmd = eSSCommand_SyncResponse;
@@ -340,6 +342,7 @@ Slice SyncResponse::encode()
     StreamBuf pack( 1024, sizeof(SSHead) );
 
     // BODY
+    pack.encode( method );
     pack.encode( binlog );
     pack.encode( value );
 
@@ -360,6 +363,7 @@ bool SyncResponse::decode( const Slice & data )
 {
     StreamBuf unpack(
             data.data(), data.size() );
+    unpack.decode( method );
     unpack.decode( binlog );
     unpack.decode( value );
 

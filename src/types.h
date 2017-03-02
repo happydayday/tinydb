@@ -100,4 +100,11 @@ public:
     static const char COPY      = 2;
 };
 
+// 备机状态
+enum
+{
+    eSlaveState_Copy            = 1,        // 同步状态
+    eSlaveState_Sync            = 2,        // 即时同步状态
+};
+
 #endif

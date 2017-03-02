@@ -8,6 +8,8 @@
 #include "base.h"
 #include "types.h"
 
+#include "syncbackend.h"
+#include "dataserver.h"
 #include "binlog.h"
 
 /* Binlog */
@@ -28,7 +30,7 @@ uint64_t Binlog::seq() const
 
 char Binlog::cmd() const
 {
-	return m_Buf[ sizeof(uint64_t) + 1 ];
+	return m_Buf[ sizeof(uint64_t) ];
 }
 
 const Slice Binlog::key() const
@@ -100,8 +102,6 @@ static inline uint64_t decode_seq_key( const leveldb::Slice & key )
 
 BinlogQueue::BinlogQueue( LevelDBEngine * engine )
 {
-    pthread_mutex_init( &m_Lock, NULL );
-
     this->m_Engine = engine;
 	this->m_MinSeq = 0;
 	this->m_LastSeq = 0;
@@ -130,34 +130,12 @@ BinlogQueue::BinlogQueue( LevelDBEngine * engine )
 	}
 
 	LOG_INFO( "binlogs capacity: %d, min: %lu, max: %lu\n", m_Capacity, m_MinSeq, m_LastSeq );
-
-	// start cleaning thread
-	m_Quit = false;
-	pthread_t tid;
-	int err = pthread_create( &tid, NULL, &BinlogQueue::logCleanThreadFunc, this );
-	if(err != 0){
-		LOG_FATAL( "can't create thread: %s\n", strerror(err) );
-		exit(0);
-	}
 }
 
 BinlogQueue::~BinlogQueue()
 {
-	m_Quit = true;
-	for( int i = 0; i < 100; i++ )
-    {
-		if( m_Quit == false )
-        {
-			break;
-		}
-
-		usleep( 10 * 1000 );
-	}
-
 	m_Engine = NULL;
 	LOG_DEBUG( "BinlogQueue finalized.\n" );
-
-    pthread_mutex_destroy( &m_Lock );
 }
 
 void BinlogQueue::begin()
@@ -177,8 +155,38 @@ bool BinlogQueue::commit()
     bool ret = m_Engine->commit();
     if ( ret )
     {
+        // 即时同步给备机
+        std::vector<uint64_t> slavesids;
+        BackendSync * backend = CDataServer::getInstance().getBackendSync();
+        if ( backend != NULL )
+        {
+            backend->getSlaveSids( slavesids );
+            if ( !slavesids.empty() )
+            {
+                Binlog binlog;
+                if ( this->get( m_TranSeq, &binlog ) == 1 )
+                {
+                    for ( size_t i = 0; i < slavesids.size(); ++i )
+                    {
+                        backend->send( slavesids[i], binlog );
+                        LOG_DEBUG( "BinlogQueue::commit(sid:%llu, lastseq:%llu).\n", slavesids[i], m_TranSeq );
+                    }
+                }
+            }
+        }
+
         m_LastSeq = m_TranSeq;
         m_TranSeq = 0;
+    }
+
+    // 判断binlog区间
+    if ( m_LastSeq > m_MinSeq + LOG_QUEUE_SIZE )
+    {
+        int ret = this->del( m_MinSeq );
+        if ( ret == 0 )
+        {
+            m_MinSeq += 1;
+        }
     }
 
 	return ret;
@@ -319,7 +327,7 @@ void BinlogQueue::flush()
 
 int BinlogQueue::delRange( uint64_t start, uint64_t end )
 {
-	while(start <= end)
+	while( start <= end )
     {
 		leveldb::WriteBatch batch;
 		for( int count = 0; start <= end && count < 1000; start++, count++ )
@@ -335,71 +343,6 @@ int BinlogQueue::delRange( uint64_t start, uint64_t end )
 	}
 
 	return 0;
-}
-
-void * BinlogQueue::logCleanThreadFunc(void *arg)
-{
-	BinlogQueue *logs = (BinlogQueue *)arg;
-
-	while( !logs->m_Quit )
-    {
-		if(!logs->m_Engine)
-        {
-			break;
-		}
-
-		usleep(100 * 1000);
-		assert(logs->m_LastSeq >= logs->m_MinSeq);
-
-		if( logs->m_LastSeq - logs->m_MinSeq < LOG_QUEUE_SIZE * 1.1 )
-        {
-			continue;
-		}
-
-		uint64_t start = logs->m_MinSeq;
-		uint64_t end = logs->m_LastSeq - LOG_QUEUE_SIZE;
-		logs->delRange( start, end );
-		logs->m_MinSeq = end + 1;
-		LOG_INFO( "clean %d logs[%lu ~ %lu], %d left, max: %lu.\n",
-			end-start+1, start, end, logs->m_LastSeq - logs->m_MinSeq + 1, logs->m_LastSeq );
-	}
-
-	LOG_DEBUG( "clean_thread quit.\n" );
-
-	logs->m_Quit = false;
-	return (void *)NULL;
-}
-
-// TESTING, slow, so not used
-void BinlogQueue::merge()
-{
-	std::map<std::string, uint64_t> key_map;
-	uint64_t start = m_MinSeq;
-	uint64_t end = m_LastSeq;
-	int reduce_count = 0;
-	int total = 0;
-	total = end - start + 1;
-	(void)total; // suppresses warning
-	LOG_TRACE( "merge begin.\n" );
-	for( ; start <= end; start++ )
-    {
-		Binlog log;
-		if( this->get( start, &log ) == 1 )
-        {
-			std::string key = log.key().ToString();
-			std::map<std::string, uint64_t>::iterator it = key_map.find(key);
-			if( it != key_map.end() )
-            {
-				uint64_t seq = it->second;
-				this->update( seq, BinlogCommand::NONE, "" );
-				reduce_count ++;
-			}
-
-            key_map[key] = log.seq();
-		}
-	}
-
-	LOG_TRACE( "merge reduce %d of %d binlogs.\n", reduce_count, total );
 }
 
 };

@@ -40,7 +40,6 @@ public :
 	CMasterService( uint8_t nthreads, uint32_t nclients );
 	virtual ~CMasterService();
 
-    virtual void * getLocalData( uint8_t index );
 	virtual IIOSession * onAccept( sid_t id, const char * host, uint16_t port );
 
 public :

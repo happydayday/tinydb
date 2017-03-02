@@ -21,9 +21,7 @@ namespace tinydb
 
 BackendSync::BackendSync()
     : m_ThreadQuit( false )
-{
-    pthread_mutex_init( &m_Lock, NULL );
-}
+{}
 
 BackendSync::~BackendSync()
 {
@@ -35,14 +33,11 @@ BackendSync::~BackendSync()
 		// there is something wrong that sleep makes other threads
 		// unable to acquire the mutex
 		{
-            pthread_mutex_lock( &m_Lock );
+            Lock lock( &m_WorkerMutex );
             if( m_Workers.empty() )
             {
-	            pthread_mutex_unlock( &m_Lock );
                 break;
 			}
-
-            pthread_mutex_unlock( &m_Lock );
 		}
 
 		usleep(50 * 1000);
@@ -53,14 +48,13 @@ BackendSync::~BackendSync()
 		LOG_INFO( "Backend worker not exit expectedly.\n" );
 	}
 
-    pthread_mutex_destroy( &m_Lock );
 
 	LOG_DEBUG( "BackendSync finalized.\n" );
 }
 
-void BackendSync::process( int64_t sid, uint64_t lastseq, const std::string & lastkey )
+void BackendSync::process( uint64_t sid, uint64_t lastseq, const std::string & lastkey )
 {
-	LOG_INFO( "sid: %lld, accept sync client.\n", sid );
+	LOG_INFO( "accept sync client(sid : %llu).\n", sid );
 
 	struct run_arg *arg = new run_arg();
 	arg->sid = sid;
@@ -74,31 +68,65 @@ void BackendSync::process( int64_t sid, uint64_t lastseq, const std::string & la
     {
 		LOG_ERROR( "can't create thread: %s.\n", strerror(err) );
 	    // TODO:关闭链接
-
+        return;
     }
 
-    pthread_mutex_lock( &m_Lock );
-	m_Workers.insert( std::make_pair( tid, sid ) );
-    pthread_mutex_unlock( &m_Lock );
+    Lock lock( &m_WorkerMutex );
+    m_Workers.insert( std::make_pair( sid, 0 ) );
 }
 
-void BackendSync::shutdown( int64_t sid )
+void BackendSync::shutdown( uint64_t sid )
 {
-    pthread_mutex_lock( &m_Lock );
-	std::map<pthread_t, int64_t>::iterator it;
-    for ( it = m_Workers.begin(); it != m_Workers.end(); )
+    Lock lock( &m_WorkerMutex );
+    m_Workers.erase( sid );
+}
+
+void BackendSync::getSlaveSids( std::vector<uint64_t> & sids )
+{
+    Lock lock( &m_WorkerMutex );
+    std::map<uint64_t, uint8_t>::iterator it;
+    for ( it = m_Workers.begin(); it != m_Workers.end(); ++it )
     {
-        if ( it->second == sid )
+        if ( it->second == eSlaveState_Sync )
         {
-            m_Workers.erase( it++ );
-            break;
-        }
-        else
-        {
-            ++it;
+            sids.push_back( it->first );
         }
     }
-    pthread_mutex_unlock( &m_Lock );
+}
+
+void BackendSync::send( uint64_t sid, const Binlog & log )
+{
+    bool rc = false;
+    std::string val;
+
+    switch( log.cmd() )
+    {
+		case BinlogCommand::SET:
+			rc = CDataServer::getInstance().getMainDB()->get( log.key().ToString(), val );
+			if( !rc)
+            {
+			    LOG_ERROR( "BackendSync::send get key=%s error.\n", log.key().ToString().c_str() );
+			}
+            else
+            {
+                this->send( sid, BinlogType::SYNC, log.repr(), val );
+            }
+			break;
+		case BinlogCommand::DEL:
+            {
+                this->send( sid, BinlogType::SYNC, log.repr() );
+            }
+			break;
+    }
+}
+
+void BackendSync::send( uint64_t sid, const char method, const std::string & log, const std::string & value )
+{
+    SyncResponse response;
+    response.method = method;
+    response.binlog = log;
+    response.value = value;
+    g_MasterService->send( sid, &response );
 }
 
 void* BackendSync::sync_backend( void *arg )
@@ -119,34 +147,49 @@ void* BackendSync::sync_backend( void *arg )
 #define TICK_INTERVAL_MS	300
 #define NOOP_IDLES			(3000/TICK_INTERVAL_MS)
 
-    int idle = 0;
+    int32_t idle = 0;
     while( !backend->m_ThreadQuit )
     {
-        // TODO: test
-        //usleep(2000 * 1000);
-
         if( client.status == Client::OUT_OF_SYNC )
         {
             client.reset();
             continue;
         }
 
-        bool is_empty = true;
+        bool isempty = true;
         // WARN: MUST do first sync() before first copy(), because
         // sync() will refresh last_seq, and copy() will not
         if( client.sync(logs) )
         {
-            is_empty = false;
+            isempty = false;
         }
         if( client.status == Client::COPY )
         {
             if( client.copy() )
             {
-                is_empty = false;
+                isempty = false;
             }
         }
-        if( is_empty )
+        if( isempty )
         {
+            if ( client.status == Client::SYNC )
+            {
+                // 进入实时同步状态
+                Lock lock( &backend->m_WorkerMutex );
+                std::map<uint64_t, uint8_t>::iterator it;
+                for ( it = backend->m_Workers.begin(); it != backend->m_Workers.end(); ++it )
+                {
+                    if ( it->first == client.sid )
+                    {
+                        it->second = eSlaveState_Sync;
+                    }
+                }
+
+                // 退出本线程,进入同步实时状态
+                LOG_INFO( "Sync Client Quit( sid=%llu, lastseq=%llu ).\n ", client.sid, client.lastseq );
+                break;
+            }
+
             if( idle >= NOOP_IDLES )
             {
                 idle = 0;
@@ -164,27 +207,24 @@ void* BackendSync::sync_backend( void *arg )
         }
 
         // TODO : 同步速度
-        // TODO : 备机断开连接时
-        pthread_mutex_lock( &backend->m_Lock );
+        // 备机断开连接时
+        Lock lock( &backend->m_WorkerMutex );
         if ( backend->m_Workers.end() ==
-                backend->m_Workers.find( pthread_self() ) )
+                backend->m_Workers.find( client.sid ) )
         {
-            pthread_mutex_unlock( &backend->m_Lock );
+            LOG_INFO( "Sync Client Quit(sid=%llu).\n ", client.sid );
             break;
         }
-        pthread_mutex_unlock( &backend->m_Lock );
-
     }
 
-    LOG_INFO( "Sync Client quit.\n " );
-
-    pthread_mutex_lock( &backend->m_Lock );
-    if ( backend->m_Workers.end() !=
-            backend->m_Workers.find( pthread_self() ) )
+    if ( backend->m_ThreadQuit )
     {
-        backend->m_Workers.erase( pthread_self() );
+        LOG_INFO( "Sync Client quit(application quit).\n " );
+
+        // 应用退出
+        Lock lock( &backend->m_WorkerMutex );
+        backend->m_Workers.erase( client.sid );
     }
-    pthread_mutex_unlock( &backend->m_Lock );
 
     return (void *)NULL;
 }
@@ -192,7 +232,7 @@ void* BackendSync::sync_backend( void *arg )
 
 /* Client */
 
-BackendSync::Client::Client( const BackendSync *backend, int64_t sid, uint64_t lastseq, const std::string & lastkey )
+BackendSync::Client::Client( BackendSync *backend, int64_t sid, uint64_t lastseq, const std::string & lastkey )
 {
 	this->status = Client::INIT;
 	this->sid = sid;
@@ -223,6 +263,16 @@ void BackendSync::Client::init()
 		// a slave must reset its last_key when receiving 'copy_end' command
 		this->status = Client::COPY;
 	}
+
+    Lock lock( &backend->m_WorkerMutex );
+    std::map<uint64_t, uint8_t>::iterator it;
+    for ( it = backend->m_Workers.begin(); it != backend->m_Workers.end(); ++it )
+    {
+        if ( it->first == sid )
+        {
+            it->second = eSlaveState_Copy;
+        }
+    }
 }
 
 void BackendSync::Client::reset()
@@ -382,7 +432,7 @@ int BackendSync::Client::sync( BinlogQueue *logs )
 			rc = CDataServer::getInstance().getMainDB()->get( log.key().ToString(), val );
 			if( !rc)
             {
-			    LOG_ERROR( "get key=%s error.\n", log.key().ToString().c_str() );
+			    LOG_ERROR( "BackendSync::Client::sync get key=%s error.\n", log.key().ToString().c_str() );
 			}
             else
             {
