@@ -92,15 +92,18 @@ int32_t CacheProtocol::decode( const char * buffer, uint32_t nbytes )
 
                 if ( fields[ 1 ] != NULL )
                 {
-                    LOG_WARN( "CacheProtocol::decode(CMD:'%s', KEY:'%s') : the datad not support the Flags feature .\n", cmd, fields[0] );
+                    LOG_WARN( "CacheProtocol::decode(CMD:'%s', KEY:'%s') : the %s-%s not support the Flags feature .\n",
+                            cmd, fields[0], __APPNAME__, __APPVERSION__ );
                 }
                 if ( fields[ 2 ] != NULL )
                 {
-                    LOG_WARN( "CacheProtocol::decode(CMD:'%s', KEY:'%s') : this datad-%s not support the ExpireTime feature .\n", cmd, fields[0], __APPVERSION__ );
+                    LOG_WARN( "CacheProtocol::decode(CMD:'%s', KEY:'%s') : this %s-%s not support the ExpireTime feature .\n",
+                            cmd, fields[0], __APPNAME__, __APPVERSION__ );
                 }
                 if ( nfields == 5 && fields[4] != NULL )
                 {
-                    LOG_WARN( "CacheProtocol::decode(CMD:'%s', KEY:'%s') : this datad-%s not support the CasUnique feature .\n", cmd, fields[0], __APPVERSION__ );
+                    LOG_WARN( "CacheProtocol::decode(CMD:'%s', KEY:'%s') : this %s-%s not support the CasUnique feature .\n",
+                            cmd, fields[0], __APPNAME__, __APPVERSION__ );
                 }
 
                 // TODO: cas
@@ -171,13 +174,11 @@ int32_t CacheProtocol::decode( const char * buffer, uint32_t nbytes )
 
             length += bytes;
 
-            if ( m_Message->isComplete() )
+            // 检查DataChunk
+            if ( m_Message->isComplete()
+                    && !m_Message->checkDataChunk() )
             {
-                // 检查Value换行符
-                if ( !m_Message->checkDataChunk() )
-                {
-                    m_Message->setError("CLIENT_ERROR bad data chunk");
-                }
+                m_Message->setError("CLIENT_ERROR bad data chunk");
             }
         }
     }
@@ -188,24 +189,34 @@ int32_t CacheProtocol::decode( const char * buffer, uint32_t nbytes )
 
 char * CacheProtocol::getline( const char * buffer, uint32_t nbytes, int32_t & length )
 {
+    uint32_t len = 0;
     char * line = NULL;
 
-    char * pos = (char *)memchr( (void*)buffer, '\n', nbytes );
-    if ( pos == NULL )
+    for ( len = 0; len < nbytes; ++len )
+    {
+        if ( buffer[ len ] == '\r'
+                && buffer[ len+1 ] == '\n' )
+        {
+            break;
+        }
+    }
+
+    if ( len == nbytes )
     {
         return NULL;
     }
 
-    length = pos - buffer + 1;
-
-    line = (char *)malloc( length-1 );
+    line = (char *)::malloc( len + 1 );
     if ( line == NULL )
     {
         return NULL;
     }
 
-    memcpy( line, buffer, length-2 );
-    line[ length-2 ] = 0;
+    //
+    ::memcpy( line, buffer, len );
+    //
+    length = len + 2;
+    line[ len ] = '\0';
 
     return line;
 }

@@ -17,6 +17,7 @@
 
 #include "config.h"
 #include "dataserver.h"
+#include "clientproxy.h"
 
 //
 RunStatus               g_RunStatus;
@@ -146,6 +147,12 @@ int main(int argc, char ** argv)
     while ( g_RunStatus != eRunStatus_Stop
             && tinydb::CDataServer::getInstance().isRunning() )
     {
+        if ( !tinydb::CDataServer::getInstance().getClientProxy()->checkDiskUsage() )
+        {
+            g_RunStatus = eRunStatus_Stop;
+            LOG_FATAL( "%s does not have enough Avail DiskSpace .\n", module.c_str() );
+        }
+
         if ( g_RunStatus == eRunStatus_Reload )
         {
             // 重新加载配置文件

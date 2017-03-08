@@ -29,6 +29,7 @@ public :
     int32_t decode( const char * buffer, uint32_t nbytes );
 
 private :
+    // length - 包括换行符的长度
     char * getline( const char * buffer, uint32_t nbytes, int32_t & length );
 
 private :

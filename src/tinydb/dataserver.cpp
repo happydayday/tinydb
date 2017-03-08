@@ -202,7 +202,6 @@ bool CDataServer::startReplicationService()
 
         LOG_INFO( "CMasterService(1, 32) listen (%s::%d) succeed .\n",
                 config->endpoint.host.c_str(), config->endpoint.port );
-
     }
     else if ( config->type == 1 )
     {

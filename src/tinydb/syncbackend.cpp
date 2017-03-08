@@ -398,7 +398,8 @@ copy_end:
 int BackendSync::Client::sync( const BinlogQueue *logs )
 {
 	Binlog log;
-	while(1)
+
+    while( 1 )
     {
 		int ret = 0;
 		uint64_t expect_seq = this->lastseq + 1;
@@ -426,7 +427,8 @@ int BackendSync::Client::sync( const BinlogQueue *logs )
 				delete this->iter;
 				this->iter = NULL;
 			}
-			continue;
+
+            continue;
 		}
 		if( this->lastseq != 0 && log.seq() != expect_seq )
         {

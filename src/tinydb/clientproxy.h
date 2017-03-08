@@ -34,6 +34,9 @@ public :
 public :
     const BinlogQueue * getBinlog() const { return m_Binlogs; }
 
+    // 检查磁盘
+    bool checkDiskUsage();
+
 private :
     // 处理逻辑
     void execute();

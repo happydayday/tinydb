@@ -167,7 +167,7 @@ private :
     uint32_t    m_Length;           // BUFF总长度
     uint32_t    m_Size;             // 长度
     uint32_t    m_Offset;           // 构造函数中定义的偏移量
-    uint32_t    m_Position;         // 位置
+    uint32_t    m_Position;         // 序列化的位置
     bool        m_IsFixed;          // 是否是定长的BUFF
     bool        m_IsSelfFree;       // 是否自销毁
 };

@@ -483,4 +483,14 @@ void CClientProxy::dump( CacheMessage * message )
     }
 }
 
+bool CClientProxy::checkDiskUsage()
+{
+    if ( CDataServer::getInstance().getStorageEngine() != NULL )
+    {
+        return CDataServer::getInstance().getStorageEngine()->check( 5 );
+    }
+
+    return true;
+}
+
 }

@@ -261,7 +261,7 @@ int CSlaveProxy::procSync( char method, const Binlog &log, const std::string & v
 			break;
 	}
 
-    LOG_DEBUG( "Slave::procSync cmd=%c, seq=%llu, key=%s.\n", log.cmd(), log.seq(), log.key().ToString().c_str() );
+    LOG_DEBUG( "Slave::procSync seq=%llu, key=%s.\n", log.seq(), log.key().ToString().c_str() );
     m_LastSeq = log.seq();
 	if( method == BinlogType::COPY )
     {
