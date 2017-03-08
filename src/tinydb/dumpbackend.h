@@ -12,7 +12,6 @@ class CDataServer;
 struct DumpThreadArgs
 {
     sid_t sid;
-    CDataServer * server;
 };
 
 // 存档后台线程

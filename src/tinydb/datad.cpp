@@ -13,6 +13,7 @@
 #include "version.h"
 
 #include "utils/file.h"
+#include "utils/timeutils.h"
 
 #include "config.h"
 #include "dataserver.h"

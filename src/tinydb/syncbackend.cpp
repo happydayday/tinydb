@@ -13,6 +13,7 @@
 #include "dataserver.h"
 #include "masterservice.h"
 #include "iterator.h"
+#include "clientproxy.h"
 
 #include "syncbackend.h"
 
@@ -102,7 +103,7 @@ void BackendSync::send( uint64_t sid, const Binlog & log )
     switch( log.cmd() )
     {
 		case BinlogCommand::SET:
-			rc = CDataServer::getInstance().getMainDB()->get( log.key().ToString(), val );
+			rc = CDataServer::getInstance().getStorageEngine()->get( log.key().ToString(), val );
 			if( !rc)
             {
 			    LOG_ERROR( "BackendSync::send get key=%s error.\n", log.key().ToString().c_str() );
@@ -129,6 +130,21 @@ void BackendSync::send( uint64_t sid, const char method, const std::string & log
     g_MasterService->send( sid, &response );
 }
 
+Iterator* BackendSync::iterator( const std::string & start, const std::string & end, uint64_t limit ) const
+{
+    leveldb::Iterator *it;
+    leveldb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    it = CDataServer::getInstance().getStorageEngine()->getDatabase()->NewIterator(iterate_options);
+    it->Seek(start);
+    if( it->Valid() && it->key() == start )
+    {
+        it->Next();
+    }
+
+    return new Iterator( it, end, limit );
+}
+
 void* BackendSync::sync_backend( void *arg )
 {
     struct run_arg *p = (struct run_arg*)arg;
@@ -138,7 +154,7 @@ void* BackendSync::sync_backend( void *arg )
     std::string lastkey = p->lastkey;
     delete p;
 
-    BinlogQueue *logs = CDataServer::getInstance().getBinlog();
+    const BinlogQueue *logs = g_ClientProxy->getBinlog();
 
     Client client( backend, sid, lastseq, lastkey );
     client.init();
@@ -314,7 +330,7 @@ int BackendSync::Client::copy()
             key.push_back( DataType::KV );
         }
 
-        this->iter = CDataServer::getInstance().iterator( key, "", -1 );
+        this->iter = backend->iterator( key, "", -1 );
         LOG_INFO( "iterator created, lastkey: '%s'.\n", utils::Utility::hexmem(lastkey.data(), lastkey.size()).c_str());
     }
 
@@ -379,7 +395,7 @@ copy_end:
     return 1;
 }
 
-int BackendSync::Client::sync( BinlogQueue *logs )
+int BackendSync::Client::sync( const BinlogQueue *logs )
 {
 	Binlog log;
 	while(1)
@@ -429,7 +445,7 @@ int BackendSync::Client::sync( BinlogQueue *logs )
 	switch( log.cmd() )
     {
 		case BinlogCommand::SET:
-			rc = CDataServer::getInstance().getMainDB()->get( log.key().ToString(), val );
+			rc = CDataServer::getInstance().getStorageEngine()->get( log.key().ToString(), val );
 			if( !rc)
             {
 			    LOG_ERROR( "BackendSync::Client::sync get key=%s error.\n", log.key().ToString().c_str() );

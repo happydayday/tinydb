@@ -6,8 +6,8 @@
 
 #include "message.h"
 #include "protocol.h"
-#include "dataserver.h"
 #include "middleware.h"
+#include "slaveproxy.h"
 
 #include "slaveclient.h"
 
@@ -29,7 +29,7 @@ int32_t CSlaveClientSession::onStart()
     setKeepalive( m_SlaveClient->getKeepaliveSeconds() );
 
     CSlaveConnectTask * task = new CSlaveConnectTask();
-    bool result = CDataServer::getInstance().post(
+    bool result = g_SlaveProxy->post(
             eTaskType_Middleware, static_cast<void *>(task) );
 
     if ( !result )
@@ -72,7 +72,7 @@ int32_t CSlaveClientSession::onProcess( const char * buffer, uint32_t nbytes )
                 id(), head, Slice( buf+sizeof(SSHead), head.size ) );
         if ( msg != NULL )
         {
-            CDataServer::getInstance().post( eTaskType_DataMaster, static_cast<void *>(msg) );
+            g_SlaveProxy->post( eTaskType_DataMaster, static_cast<void *>(msg) );
         }
 
         nprocess += head.size;
@@ -90,6 +90,9 @@ int32_t CSlaveClientSession::onTimeout()
 int32_t CSlaveClientSession::onKeepalive()
 {
     // 发送心跳包
+    PingCommand cmd;
+    m_SlaveClient->send( &cmd );
+
     return 0;
 }
 

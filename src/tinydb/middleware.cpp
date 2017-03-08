@@ -1,7 +1,6 @@
 
-#include "dataserver.h"
-#include "slave.h"
 #include "syncbackend.h"
+#include "slaveproxy.h"
 
 #include "middleware.h"
 
@@ -10,24 +9,13 @@ namespace tinydb
 
 void CSlaveConnectTask::process()
 {
-    Slave * slave = CDataServer::getInstance().getSlave();
-    if ( slave  == NULL )
-    {
-        return;
-    }
-
-    slave->onConnect();
+    g_SlaveProxy->onConnect();
 }
 
 void CSlaveDisconnetTask::process()
 {
-    BackendSync * sync = CDataServer::getInstance().getBackendSync();
-    if ( sync == NULL )
-    {
-        return;
-    }
-
-    sync->shutdown( m_Sid );
+    // 通知主服，次服断开连接
+    CDataServer::getInstance().getBackendSync()->shutdown( m_Sid );
 }
 
 }

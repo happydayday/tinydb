@@ -5,6 +5,7 @@
 #include "message.h"
 #include "protocol.h"
 #include "middleware.h"
+#include "masterproxy.h"
 
 #include "masterservice.h"
 
@@ -59,7 +60,7 @@ int32_t CSlaveSession::onProcess( const char * buffer, uint32_t nbytes )
                 id(), head, Slice( buf+sizeof(SSHead), head.size ) );
         if ( msg != NULL )
         {
-            CDataServer::getInstance().post( eTaskType_DataSlave, static_cast<void *>(msg) );
+            g_MasterProxy->post( eTaskType_DataSlave, static_cast<void *>(msg) );
         }
 
         nprocess += head.size;
@@ -86,7 +87,7 @@ void CSlaveSession::onShutdown( int32_t way )
 {
     CSlaveDisconnetTask * task = new CSlaveDisconnetTask();
     task->setSid( id() );
-    bool result = CDataServer::getInstance().post(
+    bool result = g_MasterProxy->post(
             eTaskType_Middleware, static_cast<void *>(task) );
 
     if ( !result )

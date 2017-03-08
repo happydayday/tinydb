@@ -5,8 +5,9 @@
 #include "types.h"
 
 #include "message.h"
-#include "dataserver.h"
 #include "dataservice.h"
+#include "dataserver.h"
+#include "clientproxy.h"
 
 namespace tinydb
 {
@@ -63,7 +64,7 @@ int32_t CClientSession::onProcess( const char * buf, uint32_t nbytes )
 
                 // 没有出错, 提交给DataThread处理
                 msg->setSid( id() );
-                CDataServer::getInstance().post( eTaskType_Client, static_cast<void *>(msg) );
+                g_ClientProxy->post( eTaskType_Client, static_cast<void *>(msg) );
             }
 
             m_MsgDecoder.clear();

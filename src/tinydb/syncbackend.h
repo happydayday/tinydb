@@ -35,6 +35,8 @@ public :
     // 同步数据
     void send( uint64_t sid, const Binlog & log );
 
+    Iterator* iterator( const std::string & start, const std::string & end, uint64_t limit ) const;
+
 private :
     void send( uint64_t sid, const char method, const std::string & log, const std::string & value = "" );
 
@@ -77,7 +79,7 @@ struct BackendSync::Client
 	void reset();
 	void noop();
 	int copy();
-    int sync( BinlogQueue *logs );
+    int sync( const BinlogQueue *logs );
     void send( const char method, const std::string & log, const std::string & value = "" );
 };
 
@@ -103,6 +105,8 @@ private :
 private :
     utils::Mutex * m_Mutex;
 };
+
+#define g_BackendSync CDataServer::getInstance().getBackendSync()
 
 }
 #endif

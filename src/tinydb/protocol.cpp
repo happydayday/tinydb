@@ -288,6 +288,47 @@ bool SSMessage::make( const char * buffer, uint32_t len )
     return space != NULL;
 }
 
+///////////////////////////////////////////////////////////////////////////////////
+
+PingCommand::PingCommand()
+{
+    head.cmd = eSSCommand_Ping;
+}
+
+PingCommand::~PingCommand()
+{}
+
+Slice PingCommand::encode()
+{
+    StreamBuf pack( 64, sizeof(SSHead) );
+
+    // TODO: BODY
+
+    // 计算长度
+    space = pack.data();
+    length = pack.length();
+    head.size = pack.size();
+
+    // 重置并且编码HEAD
+    pack.reset();
+    pack.encode( head.cmd );
+    pack.encode( head.size );
+
+    return pack.slice();
+}
+
+bool PingCommand::decode( const Slice & data )
+{
+    // 解析数据
+    StreamBuf unpack(
+            data.data(), data.size() );
+    // TODO:
+
+    return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////
+
 SyncRequest::SyncRequest()
     : lastseq( 0ULL )
 {

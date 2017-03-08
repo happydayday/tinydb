@@ -76,6 +76,17 @@ public :
 // 通用解析
 SSMessage * GeneralDecoder( sid_t sid, const SSHead & head, const Slice & body );
 
+// PING包
+struct PingCommand : SSMessage
+{
+public :
+    PingCommand();
+    virtual ~PingCommand();
+
+    virtual Slice encode();
+    virtual bool decode( const Slice & data );
+};
+
 // 请求同步
 struct SyncRequest : SSMessage
 {

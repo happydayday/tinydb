@@ -157,10 +157,9 @@ bool BinlogQueue::commit()
     {
         // 即时同步给备机
         std::vector<uint64_t> slavesids;
-        BackendSync * backend = CDataServer::getInstance().getBackendSync();
-        if ( backend != NULL )
+        if ( g_BackendSync != NULL )
         {
-            backend->getSlaveSids( slavesids );
+            g_BackendSync->getSlaveSids( slavesids );
             if ( !slavesids.empty() )
             {
                 Binlog binlog;
@@ -168,7 +167,7 @@ bool BinlogQueue::commit()
                 {
                     for ( size_t i = 0; i < slavesids.size(); ++i )
                     {
-                        backend->send( slavesids[i], binlog );
+                        g_BackendSync->send( slavesids[i], binlog );
                         LOG_DEBUG( "BinlogQueue::commit(sid:%llu, lastseq:%llu).\n", slavesids[i], m_TranSeq );
                     }
                 }

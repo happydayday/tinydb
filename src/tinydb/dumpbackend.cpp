@@ -14,8 +14,7 @@ void * dump_backend( void * arg )
 {
     DumpThreadArgs * args = (DumpThreadArgs *)arg;
     sid_t sid = args->sid;
-    CDataServer * server = args->server;
-    LevelDBEngine * engine = args->server->getMainDB();
+    LevelDBEngine * engine = CDataServer::getInstance().getStorageEngine();
 
     leveldb::ReadOptions options;
     options.snapshot = engine->getDatabase()->GetSnapshot();
@@ -37,7 +36,7 @@ void * dump_backend( void * arg )
             if ( count != 0 && count % 100 == 0 )
             {
                 // 发送
-                server->getService()->send(
+                CDataServer::getInstance().getService()->send(
                         sid, buf.data(), buf.length(), true );
                 buf.clear();
             }
