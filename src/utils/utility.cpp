@@ -266,21 +266,4 @@ std::string Utility::hexmem( const void * p, int size )
     return ret;
 }
 
-uint16_t Utility::bigEndian( uint16_t v )
-{
-    return (v>>8) | (v<<8);
-}
-
-uint32_t Utility::bigEndian( uint32_t v )
-{
-    return (v >> 24) | ((v >> 8) & 0xff00) | ((v << 8) & 0xff0000) | (v << 24);
-}
-
-uint64_t Utility::bigEndian( uint64_t v )
-{
-    uint32_t h = v >> 32;
-    uint32_t l = v & 0xffffffffull;
-    return bigEndian(h) | ((uint64_t)bigEndian(l) << 32);
-}
-
 }

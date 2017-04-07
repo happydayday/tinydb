@@ -4,8 +4,8 @@
 #include "utils/timeutils.h"
 #include "utils/streambuf.h"
 
-#include "message.h"
-#include "protocol.h"
+#include "message/message.h"
+#include "message/protocol.h"
 #include "middleware.h"
 #include "slaveproxy.h"
 

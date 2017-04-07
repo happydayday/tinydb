@@ -6,7 +6,7 @@
 
 #include "io/io.h"
 
-#include "protocol.h"
+#include "message/protocol.h"
 
 #include "dataserver.h"
 

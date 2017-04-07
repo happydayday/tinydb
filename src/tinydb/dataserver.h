@@ -44,7 +44,9 @@ public :
     virtual void onExecute();
     virtual void onStop();
 
-public :
+private :
+    friend class Singleton<CDataServer>;
+
     CDataServer();
     virtual ~CDataServer();
 

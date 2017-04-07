@@ -4,7 +4,7 @@
 
 #include "types.h"
 
-#include "message.h"
+#include "message/message.h"
 #include "dataservice.h"
 #include "dataserver.h"
 #include "clientproxy.h"

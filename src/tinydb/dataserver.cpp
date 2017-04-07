@@ -60,6 +60,13 @@ bool CDataServer::onStart()
         return false;
     }
 
+    // 客户端代理
+    m_ClientProxy = new CClientProxy( eClientService_EachFrameSeconds, m_StorageEngine );
+    if ( !m_ClientProxy->start() )
+    {
+        return false;
+    }
+
     // DataService
     m_DataService = new CDataService(
             eDataService_ThreadsCount,
@@ -79,9 +86,8 @@ bool CDataServer::onStart()
     LOG_INFO( "CDataService(%d, %d) listen (%s::%d) succeed .\n",
             eDataService_ThreadsCount, eDataService_SessionsCount, host, port );
 
-    // 客户端代理
-    m_ClientProxy = new CClientProxy( eClientService_EachFrameSeconds, m_StorageEngine );
-    if ( !m_ClientProxy->start() )
+    // 双机热备
+    if ( !startReplicationService() )
     {
         return false;
     }
@@ -93,17 +99,12 @@ bool CDataServer::onStart()
         return false;
     }
 
-    // 双机热备
-    if ( !startReplicationService() )
-    {
-        return false;
-    }
-
     return true;
 }
 
 void CDataServer::onExecute()
 {
+    // 处理数据服务器客户端
     g_ClientProxy->run();
 }
 
@@ -114,6 +115,12 @@ void CDataServer::onStop()
         m_DataService->stop();
         delete m_DataService;
         m_DataService = NULL;
+    }
+
+    if ( m_BackendSync != NULL )
+    {
+        delete m_BackendSync;
+        m_BackendSync = NULL;
     }
 
     if ( m_MasterService != NULL )
@@ -153,12 +160,7 @@ void CDataServer::onStop()
         m_SlaveProxy = NULL;
     }
 
-    if ( m_BackendSync != NULL )
-    {
-        delete m_BackendSync;
-        m_BackendSync = NULL;
-    }
-
+    // 最后关闭
     if ( m_StorageEngine != NULL )
     {
         m_StorageEngine->finalize();

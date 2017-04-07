@@ -1,20 +1,18 @@
 
-#ifndef __SRC_TINYDB_SLAVECLIENT_H__
-#define __SRC_TINYDB_SLAVECLIENT_H__
+#ifndef __SRC_ROBOT_ROBOTCLIENT_H__
+#define __SRC_ROBOT_ROBOTCLIENT_H__
 
 #include "io/io.h"
-
-#include "message/protocol.h"
 
 namespace tinydb
 {
 
-class CSlaveClient;
-class CSlaveClientSession : public IIOSession
+class CRobotClient;
+class CRobotClientSession : public IIOSession
 {
 public :
-    CSlaveClientSession( CSlaveClient * c );
-    virtual ~CSlaveClientSession();
+    CRobotClientSession( CRobotClient * c );
+    virtual ~CRobotClientSession();
 
     int32_t onStart();
     int32_t onProcess( const char * buffer, uint32_t nbytes );
@@ -24,10 +22,14 @@ public :
     void    onShutdown( int32_t way );
 
 private :
-    CSlaveClient *   m_SlaveClient;
+    int32_t decode( const char * buffer, uint32_t nbytes );
+    char * getline( const char * buffer, uint32_t nbytes, int32_t & length );
+
+private :
+    CRobotClient *   m_Client;
 };
 
-class CSlaveClient : public IIOService
+class CRobotClient : public IIOService
 {
 public :
     enum
@@ -36,8 +38,8 @@ public :
         eSlaveClient_ClientsCount = 32,
     };
 
-    CSlaveClient( int32_t keepalive_seconds, int32_t timeout_seconds );
-    virtual ~CSlaveClient();
+    CRobotClient( int32_t keepalive_seconds, int32_t timeout_seconds );
+    virtual ~CRobotClient();
 
     //
     virtual IIOSession * onConnectSucceed( sid_t id, const char * host, uint16_t port );
@@ -45,22 +47,19 @@ public :
 
 public :
     // 获取会话ID
-    sid_t getSid() const { return m_SlaveClientSid; }
-
-    // 发送
-    bool send( SSMessage * message );
+    sid_t getSid() const { return m_ClientSid; }
 
     //
     int32_t getTimeoutSeconds() const { return m_TimeoutSeconds; }
     int32_t getKeepaliveSeconds() const { return m_KeepaliveSeconds; }
 
 private :
-    sid_t               m_SlaveClientSid;
+    sid_t               m_ClientSid;
     int32_t             m_TimeoutSeconds;
     int32_t             m_KeepaliveSeconds;
 };
 
-#define g_SlaveClient         CDataServer::getInstance().getSlaveClient()
+#define g_RobotClient         CDataServer::getInstance().getSlaveClient()
 
 }
 

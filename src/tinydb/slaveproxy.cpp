@@ -11,7 +11,7 @@
 #include "binlog.h"
 
 #include "slaveclient.h"
-#include "protocol.h"
+#include "message/protocol.h"
 #include "middleware.h"
 
 #include "slaveproxy.h"
@@ -215,11 +215,13 @@ int CSlaveProxy::procCopy( char method, const Binlog & log, const std::string & 
     {
         case BinlogCommand::BEGIN :
             {
+                LOG_INFO( "CSlaveProxy::procCopy copy begin.\n" );
             }
             break;
 
         case BinlogCommand::END :
             {
+                LOG_INFO( "CSlaveProxy::procCopy lastseq = %llu, seq = %llu", m_LastSeq, log.seq() );
                 m_LastKey = "";
                 this->saveStatus();
             }
@@ -257,7 +259,7 @@ int CSlaveProxy::procSync( char method, const Binlog &log, const std::string & v
 			break;
 
         default:
-			LOG_ERROR( "unknown binlog, cmd=%d.\n", log.cmd() );
+			LOG_ERROR( "CSlaveProxy::procSync unknown binlog, seq = %llu.\n", log.seq() );
 			break;
 	}
 

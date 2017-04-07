@@ -10,7 +10,7 @@
 #include "utils/timeutils.h"
 #include "utils/slice.h"
 
-#include "message.h"
+#include "message/message.h"
 #include "dataserver.h"
 #include "dataservice.h"
 #include "middleware.h"

@@ -23,26 +23,26 @@ public:
 			  const std::string & end,
 			  uint64_t limit,
 			  Direction direction = Iterator::FORWARD );
-	~Iterator();
-	bool skip(uint64_t offset);
+	virtual ~Iterator();
+	bool skip( uint64_t offset );
 	bool next();
 
     leveldb::Slice key()
     {
-		return it->key();
+		return m_It->key();
 	}
 
     leveldb::Slice val()
     {
-		return it->value();
+		return m_It->value();
 	}
 
 private:
-	leveldb::Iterator *it;
-	std::string end;
-	uint64_t limit;
-	bool is_first;
-	int direction;
+	leveldb::Iterator *     m_It;
+	std::string             m_End;
+	uint64_t                m_Limit;
+	bool                    m_First;
+	int32_t                 m_Direction;
 };
 
 }

@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "middleware.h"
-#include "protocol.h"
+#include "message/protocol.h"
 
 #include "syncbackend.h"
 #include "masterservice.h"

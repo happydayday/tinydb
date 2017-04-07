@@ -60,11 +60,6 @@ public :
 
     static std::string hexmem( const void * p, int size );
 
-    // 大端
-    static uint16_t bigEndian( uint16_t v );
-    static uint32_t bigEndian( uint32_t v );
-    static uint64_t bigEndian( uint64_t v );
-
 private :
     static RandomDevice g_Device;
     static Random       g_Generate;

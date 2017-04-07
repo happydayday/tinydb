@@ -99,8 +99,8 @@ public :
 
 private :
     // No copying allowed
-    Lock(const Lock&) {}
-    void operator=(const Lock&) {}
+    Lock( const Lock& ) {}
+    void operator=( const Lock& ) {}
 
 private :
     utils::Mutex * m_Mutex;

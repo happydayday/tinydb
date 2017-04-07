@@ -10,9 +10,10 @@ THIRDLIBS 	= evlite leveldb tcmalloc
 
 # 定义工程中的所有项目
 DATAD		= $(ROOT)/src/tinydb
+ROBOTD 		= $(ROOT)/src/robot
 
 # 定义工程
-SOLUTION	= $(DATAD)
+SOLUTION	= $(DATAD) $(ROBOTD)
 
 .PHONY: all install uninstall release clean test $(SOLUTION)
 

@@ -9,7 +9,7 @@
 
 #include "base.h"
 
-#include "protocol.h"
+#include "message/protocol.h"
 #include "dataserver.h"
 #include "masterservice.h"
 #include "iterator.h"
@@ -27,9 +27,11 @@ BackendSync::BackendSync()
 BackendSync::~BackendSync()
 {
 	m_ThreadQuit = true;
-	int retry = 0;
-	int MAX_RETRY = 100;
-	while( retry++ < MAX_RETRY )
+
+    // 等待线程关闭
+    int count = 0;
+	int maxcount = 100;
+	while( count++ < maxcount )
     {
 		// there is something wrong that sleep makes other threads
 		// unable to acquire the mutex
@@ -44,7 +46,7 @@ BackendSync::~BackendSync()
 		usleep(50 * 1000);
 	}
 
-	if( retry >= MAX_RETRY )
+	if( count >= maxcount )
     {
 		LOG_INFO( "Backend worker not exit expectedly.\n" );
 	}
@@ -55,7 +57,7 @@ BackendSync::~BackendSync()
 
 void BackendSync::process( uint64_t sid, uint64_t lastseq, const std::string & lastkey )
 {
-	LOG_INFO( "accept sync client(sid : %llu).\n", sid );
+	LOG_INFO( "BackendSync::process accept sync client(sid : %llu).\n", sid );
 
 	struct run_arg *arg = new run_arg();
 	arg->sid = sid;
@@ -67,7 +69,7 @@ void BackendSync::process( uint64_t sid, uint64_t lastseq, const std::string & l
 	int err = pthread_create( &tid, NULL, &BackendSync::sync_backend, arg );
 	if(err != 0)
     {
-		LOG_ERROR( "can't create thread: %s.\n", strerror(err) );
+		LOG_ERROR( " BackendSync::process can't create thread: %s.\n", strerror(err) );
 	    // TODO:关闭链接
         return;
     }
@@ -103,17 +105,20 @@ void BackendSync::send( uint64_t sid, const Binlog & log )
     switch( log.cmd() )
     {
 		case BinlogCommand::SET:
-			rc = CDataServer::getInstance().getStorageEngine()->get( log.key().ToString(), val );
-			if( !rc)
             {
-			    LOG_ERROR( "BackendSync::send get key=%s error.\n", log.key().ToString().c_str() );
-			}
-            else
-            {
-                this->send( sid, BinlogType::SYNC, log.repr(), val );
+                rc = CDataServer::getInstance().getStorageEngine()->get( log.key().ToString(), val );
+                if( !rc)
+                {
+                    LOG_ERROR( "BackendSync::send get key=%s error.\n", log.key().ToString().c_str() );
+                }
+                else
+                {
+                    this->send( sid, BinlogType::SYNC, log.repr(), val );
+                }
             }
 			break;
-		case BinlogCommand::DEL:
+
+        case BinlogCommand::DEL:
             {
                 this->send( sid, BinlogType::SYNC, log.repr() );
             }
@@ -261,7 +266,7 @@ BackendSync::Client::Client( BackendSync *backend, int64_t sid, uint64_t lastseq
 
 BackendSync::Client::~Client()
 {
-	if(iter)
+	if( iter )
     {
 		delete iter;
 		iter = NULL;
@@ -293,7 +298,7 @@ void BackendSync::Client::init()
 
 void BackendSync::Client::reset()
 {
-	LOG_INFO( "copy begin.\n" );
+	LOG_INFO( " BackendSync::Client::reset copy begin.\n" );
 	this->status = Client::COPY;
 	this->lastseq = 0;
 	this->lastkey = "";
@@ -335,11 +340,11 @@ int BackendSync::Client::copy()
     }
 
     int ret = 0;
-    int iterate_count = 0;
+    int count = 0;
     while( true )
     {
         // Prevent copy() from blocking too long
-        if( ++iterate_count > 1000 )
+        if( ++count > 1000 )
         {
             break;
         }

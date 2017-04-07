@@ -8,17 +8,19 @@ Iterator::Iterator( leveldb::Iterator *it,
 		const std::string &end,
 		uint64_t limit,
 		Direction direction )
-{
-	this->it = it;
-	this->end = end;
-	this->limit = limit;
-	this->is_first = true;
-	this->direction = direction;
-}
+    : m_It( it ),
+      m_End( end ),
+      m_Limit( limit ),
+      m_First( true ),
+      m_Direction( direction )
+{}
 
 Iterator::~Iterator()
 {
-	delete it;
+    if ( m_It != NULL )
+    {
+        delete m_It;
+    }
 }
 
 bool Iterator::skip( uint64_t offset )
@@ -36,51 +38,51 @@ bool Iterator::skip( uint64_t offset )
 
 bool Iterator::next()
 {
-	if( limit == 0 )
+	if( m_Limit == 0 )
     {
 		return false;
 	}
 
-	if( is_first )
+	if( m_First )
     {
-		is_first = false;
+		m_First = false;
 	}
     else
     {
-		if( direction == FORWARD )
+		if( m_Direction == FORWARD )
         {
-			it->Next();
+			m_It->Next();
 		}
         else
         {
-			it->Prev();
+			m_It->Prev();
 		}
 	}
 
-	if( !it->Valid() )
+	if( !m_It->Valid() )
     {
 		// make next() safe to be called after previous return false.
-		limit = 0;
+		m_Limit = 0;
 		return false;
 	}
-	if( direction == FORWARD )
+	if( m_Direction == FORWARD )
     {
-		if( !end.empty() && it->key().ToString() > end )
+		if( !m_End.empty() && m_It->key().ToString() > m_End )
         {
-			limit = 0;
+			m_Limit = 0;
 			return false;
 		}
 	}
     else
     {
-		if( !end.empty() && it->key().ToString() < end )
+		if( !m_End.empty() && m_It->key().ToString() < m_End )
         {
-			limit = 0;
+			m_Limit = 0;
 			return false;
 		}
 	}
 
-	limit --;
+	m_Limit --;
 	return true;
 }
 

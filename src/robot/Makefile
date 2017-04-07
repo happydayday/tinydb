@@ -12,12 +12,12 @@
 #
 #
 
-BIN				= datad
+BIN				= roboted
 
-PRODUCT 		= TinyDBServer
+PRODUCT 		= TinyDBRobot
 VERSION			= 3.0.3
 
-DEPEND_LIBS		= evlite leveldb pthread
+DEPEND_LIBS		= evlite pthread
 
 DEPEND_MODULES 	= $(ROOT)/src/io \
 					$(ROOT)/src/utils \

@@ -5,7 +5,7 @@
 #include "types.h"
 #include "io/io.h"
 
-#include "protocol.h"
+#include "message/protocol.h"
 
 namespace tinydb
 {

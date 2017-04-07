@@ -4,6 +4,7 @@
 
 #include "utils/integer.h"
 #include "utils/utility.h"
+#include "utils/endian.h"
 
 #include "base.h"
 #include "types.h"
@@ -81,7 +82,7 @@ std::string Binlog::dumps() const
 /* SyncLogQueue */
 static inline std::string encode_seq_key( uint64_t seq )
 {
-	seq = utils::Utility::bigEndian(seq);
+	seq = htobe64( seq );
 	std::string ret;
 	ret.push_back(DataType::SYNCLOG);
 	ret.append((char *)&seq, sizeof(seq));
@@ -94,7 +95,7 @@ static inline uint64_t decode_seq_key( const leveldb::Slice & key )
 	if( key.size() == (sizeof(uint64_t) + 1) && key.data()[0] == DataType::SYNCLOG )
     {
 		seq = *((uint64_t *)(key.data() + 1));
-		seq = utils::Utility::bigEndian(seq);
+	    seq = htobe64( seq );
 	}
 
 	return seq;
